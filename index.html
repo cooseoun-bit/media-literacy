@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>매체 자료의 신뢰성 판단하기</title>
+<style>
+  :root{
+    --paper:#ffffff;
+    --desk:#e7ecf3;
+    --ink:#16202e;
+    --ink-soft:#5a6878;
+    --line:#c9d3e0;
+    --tab:#2f4a6d;
+    --mark:#f4c231;
+    --mark-deep:#8a6a05;
+    --focus:#2f4a6d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--desk);
+    color:var(--ink);
+    font-family:"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic","맑은 고딕",sans-serif;
+    font-size:17px;
+    line-height:1.65;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:20px 18px 60px;}
+
+  /* 머리말 */
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px;}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0;}
+  .lead{color:var(--ink-soft);font-size:15px;margin:2px 0 18px;}
+
+  /* 진행 표시 */
+  .track{display:flex;gap:8px;margin-bottom:14px;}
+  .track button{
+    flex:1;height:38px;border:1.5px solid var(--line);background:#f6f8fb;
+    border-radius:6px;font:inherit;font-size:14px;color:var(--ink-soft);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .track button[aria-current="true"]{background:var(--tab);border-color:var(--tab);color:#fff;font-weight:700;}
+  .track .dot{width:7px;height:7px;border-radius:50%;background:var(--mark);display:none;}
+  .track button.done .dot{display:block;}
+
+  /* 자료 카드 */
+  .card{
+    background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    border-left:7px solid var(--tab);
+    padding:24px 26px;margin-bottom:16px;
+  }
+  .kicker{font-size:13px;color:var(--ink-soft);margin:0 0 6px;}
+  .headline{font-size:22px;font-weight:800;line-height:1.35;margin:0 0 14px;letter-spacing:-.02em;}
+  .body p{margin:0 0 11px;}
+  .body p:last-child{margin-bottom:0;}
+  .fineprint{font-size:11px;color:#9aa6b4;margin-top:14px;}
+  .meta-line{font-size:13px;color:var(--ink-soft);margin:-6px 0 14px;}
+  .foot{font-size:13px;color:var(--ink-soft);margin:14px 0 0;}
+
+  /* 자료 속 블록: 단서인 곳과 아닌 곳이 찾기 전에는 똑같이 보임 */
+  .card{line-height:2;}
+  .card .headline{line-height:1.7;}
+  .blk{
+    background:#f1f4f9;border:1px solid #d3dbe6;border-radius:5px;padding:1px 5px;
+    cursor:pointer;-webkit-box-decoration-break:clone;box-decoration-break:clone;
+    -webkit-tap-highlight-color:transparent;transition:background-color .15s,border-color .15s;
+  }
+  .blk:hover{background:#e3eaf3;border-color:#a9b8cc;}
+  .blk.found{background:#fbe38a;border-color:var(--mark-deep);}
+  .blk.missed{background:#fdf6dc;border:1.5px dashed var(--mark-deep);}
+  .blk.nope{background:#f6e1e1;border-color:#c98282;}
+
+  /* 사진: 출처는 사진 아래 설명 블록에서 찾기 */
+  .photo-wrap{margin:6px 0 16px;}
+  .photo{max-width:640px;line-height:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .photo img{display:block;width:100%;height:auto;}
+  .cap{font-size:13px;color:var(--ink-soft);margin:8px 0 0;line-height:1.9;}
+
+  /* 영상 자료 (유튜브 화면처럼) */
+  .player{background:#000;border-radius:10px;overflow:hidden;line-height:0;margin:4px 0 12px;}
+  .player video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000;}
+  .segs-head{font-size:14px;font-weight:700;margin:0 0 6px;line-height:1.5;}
+  .segs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;}
+  .seg{
+    font:inherit;font-size:14px;line-height:1.3;padding:8px 4px;color:var(--ink);cursor:pointer;
+    background:#f1f4f9;border:1px solid #d3dbe6;border-radius:6px;font-variant-numeric:tabular-nums;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .seg:hover{background:#e3eaf3;border-color:#a9b8cc;}
+  .seg.on{outline:2px solid var(--tab);outline-offset:1px;font-weight:700;}
+  .seg.found{background:#fbe38a;border-color:var(--mark-deep);}
+  .seg.missed{background:#fdf6dc;border:1.5px dashed var(--mark-deep);}
+  .seg.nope{background:#f6e1e1;border-color:#c98282;}
+  .claim{
+    width:100%;margin:8px 0 20px;padding:10px;font:inherit;font-size:15px;font-weight:700;line-height:1.4;
+    border:1.5px solid var(--tab);background:var(--paper);color:var(--tab);border-radius:8px;cursor:pointer;
+  }
+  .claim:disabled{opacity:.5;cursor:default;font-weight:400;}
+  .yt-title{margin-bottom:8px;}
+  .channel{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:15px;}
+  .channel p{margin:0;}
+  .avatar{
+    flex:none;width:36px;height:36px;border-radius:50%;background:#9aa9bd;color:#fff;
+    display:grid;place-items:center;font-size:15px;font-weight:700;line-height:1;
+  }
+  .avatar.sm{width:28px;height:28px;background:#dfe5ee;}
+  .desc{background:#f3f5f8;border-radius:10px;padding:10px 14px;font-size:15px;margin-bottom:18px;}
+  .desc p{margin:0;}
+  .desc .yt-meta{font-size:14px;font-weight:700;}
+  .more{border:0;background:none;padding:2px 0;font:inherit;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;}
+  .comments h3{font-size:15px;margin:0 0 4px;}
+  .comment{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:15px;}
+  .comment p{margin:0;}
+
+  /* 안내 문구 */
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10;
+    width:max-content;max-width:calc(100% - 32px);
+    background:var(--ink);color:#fff;border-radius:10px;padding:12px 18px;
+    font-size:15px;line-height:1.5;box-shadow:0 6px 20px rgba(22,32,46,.25);
+  }
+  .toast.good{background:var(--mark-deep);}
+
+  /* 출처 정보 */
+  .source{
+    background:#fdfaf0;border:1px solid #ecdca6;border-top:3px solid var(--mark);
+    border-radius:10px;padding:16px 22px;margin-bottom:16px;
+  }
+  .source-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+  .source h3{margin:0;font-size:15px;font-weight:800;}
+  .count{font-size:14px;font-weight:700;color:var(--mark-deep);}
+  .source-hint{font-size:14px;color:var(--ink-soft);margin:2px 0 12px;}
+  .source dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:15px;}
+  .source dt{color:var(--ink-soft);}
+  .source dd{margin:0;font-weight:600;}
+  .source .blank{display:inline-block;min-width:44px;border-bottom:1.5px dashed #d8c47f;color:#c7b26a;font-weight:400;text-align:center;}
+  .source .absent{color:var(--ink-soft);font-weight:400;}
+  .source .note{font-size:12px;font-weight:700;color:var(--mark-deep);background:#fbefc6;border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap;}
+  .reveal{
+    width:100%;border:1.5px dashed var(--mark-deep);background:#fdf6dc;color:var(--mark-deep);
+    border-radius:8px;padding:11px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;
+  }
+  .reveal:hover{background:#fbefc6;}
+
+  /* 판단 */
+  .judge{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:22px 26px;}
+  .judge h2{font-size:17px;margin:0 0 12px;font-weight:800;}
+  .picks{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+  .picks button{
+    flex:1;min-width:150px;padding:14px;border:2px solid var(--line);background:#f6f8fb;
+    border-radius:8px;font:inherit;font-size:16px;cursor:pointer;color:var(--ink);
+  }
+  .picks button[aria-pressed="true"]{border-color:var(--tab);background:var(--tab);color:#fff;font-weight:700;}
+  label{display:block;font-size:15px;font-weight:700;margin-bottom:7px;}
+  .hint{font-weight:400;color:var(--ink-soft);font-size:14px;}
+  textarea{
+    width:100%;min-height:110px;padding:12px 14px;border:1.5px solid var(--line);
+    border-radius:8px;font:inherit;font-size:16px;line-height:1.6;resize:vertical;background:#fcfdff;
+  }
+  textarea:focus,.picks button:focus-visible,.reveal:focus-visible,.track button:focus-visible,.nav button:focus-visible,
+  .seg:focus-visible,.claim:focus-visible,.more:focus-visible{
+    outline:3px solid var(--focus);outline-offset:2px;
+  }
+
+  /* 이동 */
+  .nav{display:flex;gap:10px;margin-top:16px;}
+  .nav button{
+    padding:13px 22px;border:1.5px solid var(--tab);background:var(--paper);color:var(--tab);
+    border-radius:8px;font:inherit;font-size:16px;font-weight:700;cursor:pointer;
+  }
+  .nav button:disabled{opacity:.35;cursor:default;}
+  .nav .primary{background:var(--tab);color:#fff;margin-left:auto;}
+
+  /* 정리 화면 */
+  .summary{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:26px;}
+  .summary h2{margin:0 0 4px;font-size:21px;}
+  .summary .lead{margin-bottom:20px;}
+  .row{border-top:1px solid var(--line);padding:16px 0;}
+  .row:first-of-type{border-top:none;padding-top:0;}
+  .row h3{margin:0 0 4px;font-size:16px;font-weight:800;}
+  .verdict{display:inline-block;font-size:14px;font-weight:700;padding:3px 10px;border:1.5px solid var(--tab);border-radius:20px;margin-bottom:8px;}
+  .verdict.none{border-color:var(--line);color:var(--ink-soft);font-weight:400;}
+  .reason{margin:0;white-space:pre-wrap;}
+  .reason.empty{color:#9aa6b4;}
+  .flag{font-size:13px;color:var(--mark-deep);background:#fdf6dc;border-radius:4px;padding:2px 8px;display:inline-block;margin-top:8px;}
+  .closing{margin-top:22px;padding:16px 18px;background:#f1f5fa;border-radius:8px;font-size:16px;}
+  .closing strong{display:block;margin-bottom:6px;}
+
+  @media (max-width:640px){
+    .wrap{padding:14px 12px 50px;}
+    .headline{font-size:19px;}
+    .card,.judge,.summary,.source{padding:18px 16px;}
+    .track button{font-size:12px;}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .blk.just{animation:pop .5s ease-out;}
+    .source dd.just{animation:open .25s ease-out;}
+    .toast{animation:rise .2s ease-out;}
+    @keyframes pop{from{box-shadow:0 0 0 7px rgba(244,194,49,.6);}to{box-shadow:0 0 0 0 rgba(244,194,49,0);}}
+    @keyframes rise{from{opacity:0;transform:translate(-50%,8px);}to{opacity:1;transform:translateX(-50%);}}
+    @keyframes open{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>매체 자료의 신뢰성 판단하기</h1></header>
+  <p class="lead">자료 네 가지입니다. 글·사진·영상의 출처를 알려 주는 곳을 찾아 누르고, 믿을 수 있는지와 그 까닭을 적어 봅시다.</p>
+
+  <nav class="track" id="track" aria-label="자료 이동"></nav>
+  <main id="stage"></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* 본문에서 [[종류|글자]] 로 감싼 부분이 누를 수 있는 출처 단서가 됩니다.
+   종류: who(누가) when(언제) where(어디에) contact(연락처) basis(근거) ad(광고) imgsrc(사진 출처)
+   사진 출처는 사진 아래 설명(img.caption)에 같은 방식으로 적습니다.
+   source에 적었지만 자료에 단서가 없는 항목은 '자료에 없음'으로 보여 줍니다. */
+const LABELS = {
+  who:"누가 썼나요", when:"언제 올렸나요", where:"어디에 있나요",
+  contact:"연락처가 있나요", basis:"근거를 밝혔나요", ad:"광고인가요",
+  imgsrc:"사진은 어디서 왔나요"
+};
+
+const DATA = [
+  {
+    tag:"자료 1",
+    kicker:"[[where|○○교육청 누리집 › 알림마당 › 공지사항]]",
+    headline:"2026학년도 2학기 학교급식 식재료 구매 기준 안내",
+    meta:"작성 부서 [[who|학교급식과]]  ·  등록일 [[when|2026. 8. 28.]]  ·  조회 1,532",
+    img:{ src:"images/급식판.jpg", alt:"스테인리스 식판에 담긴 급식", after:0,
+          caption:"▲ 2학기 급식 예시  ·  [[imgsrc|사진 제공: ○○초등학교 홈페이지]]" },
+    body:[
+      "2026학년도 2학기부터 적용되는 학교급식 식재료 구매 기준을 안내합니다.",
+      "모든 식재료는 원산지를 표시해야 하며, 농산물은 월 1회 잔류농약 검사를 받습니다. 축산물은 등급 판정 확인서를 함께 제출해야 합니다.",
+      "[[basis|검사 결과는 각 학교 누리집 급식 안내란에 공개됩니다.]] 문의는 [[contact|학교급식과(000-0000-0000)]]로 해 주시기 바랍니다."
+    ],
+    foot:"",
+    fine:"",
+    source:{ who:"○○교육청 학교급식과", when:"2026년 8월 28일", where:"○○교육청 누리집 공지사항", contact:"있음 (담당 부서 전화번호)", basis:"있음 (검사 결과를 누리집에 공개)", imgsrc:"○○초등학교 홈페이지" }
+  },
+  {
+    tag:"자료 2",
+    kicker:"[[where|SNS 게시물]]  ·  전체 공개  ·  공유 32,000회",
+    headline:"충격! 급식에 이것 들어간다… 학부모들 분노",
+    meta:"[[who|익명의 사용자]]",
+    img:{ src:"images/수상한.png", alt:"급식실에서 조리원이 음식에 액체를 떨어뜨리는 모습", after:1,
+          caption:"#급식실 #실화  ·  [[imgsrc|ⓘ AI로 만든 이미지]]" },
+    body:[
+      "[[basis|내가 아는 사람이 급식실에서 일하는데]], 요즘 급식에 진짜 말도 안 되는 게 들어간다고 함.",
+      "자세히는 못 쓰지만 알 만한 사람은 다 안다고 함. 애들 먹는 건데 이래도 되나 싶음. 다들 조심하세요.",
+      "댓글 1,204개  ·  “어느 학교인가요?”  ·  “증거 있나요?”  ·  “어느 학교인지 알려주세요”"
+    ],
+    foot:"",
+    fine:"",
+    source:{ who:"알 수 없음 (익명 계정)", when:"날짜 없음", where:"개인 SNS 게시물", contact:"없음", basis:"‘아는 사람’에게 들었다는 말뿐임", imgsrc:"AI로 만든 이미지" }
+  },
+  {
+    tag:"자료 3",
+    kicker:"[[where|건강한육아일기 블로그]] › 육아 이야기",
+    headline:"우리 아이 급식, 이것만은 꼭 확인하세요",
+    meta:"[[who|두아이맘]]  ·  [[when|2026. 3. 15.]]  ·  이웃추가",
+    img:{ src:"images/블로그.png", alt:"성장기 영양과 채소 섭취를 설명하는 그림", after:1,
+          caption:"우리 아이 급식 한눈에 보기 ♥" },
+    body:[
+      "두 아이를 키우면서 급식에 대해 많이 알아봤어요. [[basis|한 연구에 따르면]] 성장기 어린이에게는 단백질과 칼슘이 특히 중요하다고 합니다.",
+      "저희 아이 학교 급식표를 보니 채소 반찬이 매일 나오더라고요. 그런데 우리 아이는 잘 안 먹는 것 같아요. 다른 어머님들은 어떠신가요?",
+      "[[basis|전문가들도]] 편식은 어릴 때 잡아야 한다고 말합니다. 급식표를 미리 보고 아이와 이야기 나누는 걸 추천드려요."
+    ],
+    foot:"궁금한 점은 [[contact|댓글로 남겨 주세요]] :)",
+    fine:"",
+    source:{ who:"블로그 운영자 ‘두아이맘’ (실명 아님)", when:"2026년 3월 15일", where:"개인 블로그", contact:"댓글창만 있음", basis:"‘한 연구’, ‘전문가들’이 누구인지 밝히지 않음", imgsrc:"출처 없음" }
+  },
+  {
+    /* 영상 자료: segs는 영상 아래 구간 블록(초). k가 있는 구간이 단서 구간입니다. */
+    tag:"자료 4",
+    type:"video",
+    video:"화제의 밝음이 스탠드! (1).mp4",
+    kicker:"[[where|▶ YouTube]]",
+    headline:"진짜 눈이 편해질까? 밝음이 스탠드 직접 써봤습니다",
+    channel:"[[who|자취남의 리뷰방]]  ·  구독자 2.1만",
+    meta:"[[when|2023. 4. 2.]]  ·  조회수 87만  ·  좋아요 3만",
+    desc:[
+      "[[who|안녕하세요 자취남입니다.]] 오늘 소개한 제품 링크 아래 있어요!",
+      "[[ad|본 영상은 밝음이 측으로부터 제품을 제공받아 제작되었습니다.]]"
+    ],
+    comments:[ "믿고 삽니다", "자취남 리뷰면 검증된 물건이지", "이거 아직도 파나요?" ],
+    segs:[
+      { from:0,  to:4 }, { from:4,  to:8 }, { from:8, to:12 }, { from:12, to:15 },
+      { from:15, to:19, k:"basis" }, { from:19, to:23 }, { from:23, to:27.6 }
+    ],
+    labels:{ who:"누가 만들었나요", ad:"광고·협찬인가요" },
+    source:{ who:"유튜버 ‘자취남의 리뷰방’", when:"2023년 4월 2일", where:"유튜브 영상", ad:"협찬 영상 (밝음이 측에서 제품을 받아 만듦)", basis:"‘전문가들’이 누구인지 밝히지 않음 (영상 0:15~0:19)" }
+  }
+];
+
+const state = DATA.map(() => ({ verdict:null, reason:"", found:[], done:false, last:null, open:false, sel:null, vt:0 }));
+
+function labelOf(d,k){ return (d.labels && d.labels[k]) || LABELS[k]; }
+let at = 0;
+
+const track = document.getElementById("track");
+const stage = document.getElementById("stage");
+
+function drawTrack(){
+  track.innerHTML = "";
+  DATA.forEach((d,i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = d.tag + '<span class="dot"></span>';
+    if(i === at) b.setAttribute("aria-current","true");
+    if(state[i].verdict) b.classList.add("done");
+    b.onclick = () => { at = i; render(); };
+    track.appendChild(b);
+  });
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = "정리";
+  if(at === DATA.length) b.setAttribute("aria-current","true");
+  b.onclick = () => { at = DATA.length; render(); };
+  track.appendChild(b);
+}
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+const CLUE = /\[\[(\w+)\|([^\]]+)\]\]/g;
+
+// 자료(글·사진 설명·영상 정보·영상 구간)에 단서가 들어 있는 출처 항목
+function presentKeys(d){
+  const text = [d.kicker, d.meta, d.headline, d.channel, d.foot, d.fine, d.img && d.img.caption,
+                ...(d.body || []), ...(d.desc || []), ...(d.comments || [])].join("\n");
+  const segKeys = (d.segs || []).map(g => g.k).filter(Boolean);
+  return Object.keys(d.source).filter(k => text.includes("[[" + k + "|") || segKeys.includes(k));
+}
+
+function foundCount(d,s){ return presentKeys(d).filter(k => s.found.includes(k)).length; }
+
+// 글을 블록으로 나눕니다. [[종류|글자]]는 단서 블록, 나머지는 문장·쉼표 단위의 일반 블록.
+function mark(str, s){
+  str = str || "";
+  let html = "", last = 0;
+  str.replace(CLUE, (m,k,t,off) => {
+    html += plainBlocks(str.slice(last, off));
+    let c = "blk";
+    if(s.found.includes(k)) c += " found" + (s.last === k ? " just" : "");
+    else if(s.done) c += " missed";
+    html += '<span class="' + c + '" data-k="' + k + '">' + t + '</span>';
+    last = off + m.length;
+    return m;
+  });
+  return html + plainBlocks(str.slice(last));
+}
+
+function plainBlocks(text){
+  // ' · ', ' › ' 같은 구분 기호는 블록으로 만들지 않음
+  return text.split(/(\s+[·›]\s+)/).map((part,i) => i % 2 ? part :
+    part.split(/(?<=[.?!…,])(\s+)/).map(p =>
+      p.replace(/^(\s*)([\s\S]*?)(\s*)$/, (m,a,b,c) => a + (b ? '<span class="blk">' + b + '</span>' : "") + c)
+    ).join("")
+  ).join("");
+}
+
+function photo(d, s){
+  const im = d.img;
+  return '<figure class="photo-wrap">' +
+      '<div class="photo"><img src="' + im.src + '" alt="' + im.alt + '"></div>' +
+      (im.caption ? '<figcaption class="cap">' + mark(im.caption, s) + '</figcaption>' : '') +
+    '</figure>';
+}
+
+function clock(sec){
+  sec = Math.floor(sec);
+  return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+}
+
+function segClass(d, s, i){
+  const g = d.segs[i];
+  let c = "seg";
+  if(s.sel === i) c += " on";
+  if(g.k && s.found.includes(g.k)) c += " found";
+  else if(g.k && s.done) c += " missed";
+  return c;
+}
+
+function claimText(d, s){
+  if(s.sel === null) return "구간을 눌러 들어 본 뒤, 단서가 있으면 여기를 누르세요";
+  const g = d.segs[s.sel];
+  return clock(g.from) + "~" + clock(g.to) + " 구간에 단서가 있어요";
+}
+
+// 유튜브 화면처럼 꾸민 영상 자료
+function videoArticle(d, s){
+  const segs = d.segs.map((g,i) =>
+    '<button type="button" class="' + segClass(d,s,i) + '" data-i="' + i + '">' + clock(g.from) + '~' + clock(g.to) + '</button>'
+  ).join("");
+  return '<article class="card">' +
+      '<p class="kicker">' + mark(d.kicker,s) + '</p>' +
+      '<div class="player"><video id="vid" controls playsinline preload="auto" src="' + encodeURI(d.video) + '#t=0.1"></video></div>' +
+      '<p class="segs-head">영상 구간 <span class="hint">누르면 그 부분만 재생돼요.</span></p>' +
+      '<div class="segs" id="segs">' + segs + '</div>' +
+      '<button type="button" class="claim" id="claim"' + (s.sel === null ? " disabled" : "") + '>' + claimText(d,s) + '</button>' +
+      '<h2 class="headline yt-title">' + mark(d.headline,s) + '</h2>' +
+      '<div class="channel"><span class="avatar" aria-hidden="true">자</span><p>' + mark(d.channel,s) + '</p></div>' +
+      '<div class="desc">' +
+        '<p class="yt-meta">' + mark(d.meta,s) + '</p>' +
+        (s.open
+          ? d.desc.map(p => '<p>' + mark(p,s) + '</p>').join("") + '<button type="button" class="more" id="more">간략히</button>'
+          : '<button type="button" class="more" id="more">…더보기</button>') +
+      '</div>' +
+      '<div class="comments"><h3>댓글 ' + d.comments.length + '개</h3>' +
+        d.comments.map(c => '<div class="comment"><span class="avatar sm" aria-hidden="true"></span><p>' + mark(c,s) + '</p></div>').join("") +
+      '</div>' +
+    '</article>';
+}
+
+let toastTimer;
+function toast(msg, good){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.toggle("good", !!good);
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+
+function pickGroup(name, options, current){
+  return options.map(v =>
+    '<button type="button" data-g="' + name + '" data-v="' + v + '" aria-pressed="' + (current === v) + '">' + v + '</button>'
+  ).join("");
+}
+
+function drawCard(){
+  const d = DATA[at], s = state[at];
+  const present = presentKeys(d);
+  const found = foundCount(d,s);
+
+  const slots = Object.entries(d.source).map(([k,v]) => {
+    let dd;
+    if(s.found.includes(k)) dd = v;
+    else if(!s.done) dd = '<span class="blank">?</span>';
+    else if(present.includes(k)) dd = v + '<span class="note">놓친 곳</span>';
+    else dd = '<span class="absent">' + v + '</span><span class="note">자료에 없음</span>';
+    return '<dt>' + labelOf(d,k) + '</dt><dd' + (s.last === k ? ' class="just"' : '') + '>' + dd + '</dd>';
+  }).join("");
+
+  let hint;
+  if(!s.done) hint = d.type === "video"
+    ? "화면의 블록과 영상 구간에서 단서를 찾아보세요. 영상은 구간을 눌러 들어 본 뒤, 단서가 있으면 ‘구간에 단서가 있어요’를 누르세요."
+    : "글과 사진 설명의 블록에서 단서를 찾아 눌러 보세요. 자료에 나와 있지 않은 정보도 있어요.";
+  else if(found === present.length) hint = "자료에 있는 단서를 모두 찾았어요.";
+  else hint = "점선으로 표시된 곳이 놓친 단서예요.";
+
+  let article;
+  if(d.type === "video"){
+    article = videoArticle(d,s);
+  } else {
+    const bodyHtml = d.body.map((p,i) =>
+      (d.img && d.img.after === i ? photo(d,s) : "") + "<p>" + mark(p,s) + "</p>"
+    ).join("") + (d.img && d.img.after >= d.body.length ? photo(d,s) : "");
+    article =
+      '<article class="card">' +
+        '<p class="kicker">' + mark(d.kicker,s) + '</p>' +
+        '<h2 class="headline">' + mark(d.headline,s) + '</h2>' +
+        (d.meta ? '<p class="meta-line">' + mark(d.meta,s) + '</p>' : '') +
+        '<div class="body">' + bodyHtml + '</div>' +
+        (d.foot ? '<p class="foot">' + mark(d.foot,s) + '</p>' : '') +
+        (d.fine ? '<p class="fineprint">' + mark(d.fine,s) + '</p>' : '') +
+      '</article>';
+  }
+
+  stage.innerHTML =
+    article +
+    '<section class="source" aria-live="polite">' +
+      '<div class="source-head"><h3>출처 정보</h3><span class="count">찾은 단서 ' + found + ' / ' + present.length + '</span></div>' +
+      '<p class="source-hint">' + hint + '</p>' +
+      '<dl>' + slots + '</dl>' +
+      (s.done ? '' : '<button class="reveal" type="button" id="reveal">더 못 찾겠어요 · 확인하기</button>') +
+    '</section>' +
+    '<section class="judge">' +
+      '<h2>이 자료를 믿을 수 있을까요?</h2>' +
+      '<div class="picks">' + pickGroup("verdict", ["믿을 수 있다","의심스럽다"], s.verdict) + '</div>' +
+      '<label for="why">그렇게 생각한 까닭 <span class="hint">자료의 어느 부분을 보고 그렇게 생각했는지 쓰세요.</span></label>' +
+      '<textarea id="why" placeholder="예: 누가 썼는지 나와 있지 않고, 사진 출처도 없어서">' + esc(s.reason) + '</textarea>' +
+      '<div class="nav">' +
+        '<button type="button" id="prev"' + (at===0?" disabled":"") + '>이전</button>' +
+        '<button type="button" class="primary" id="next">' + (at===DATA.length-1 ? "정리하기" : "다음 자료") + '</button>' +
+      '</div>' +
+    '</section>';
+  s.last = null;
+
+  function discover(k){
+    if(s.found.includes(k)){ toast("이미 찾은 단서예요."); return; }
+    s.found.push(k);
+    s.last = k;
+    if(foundCount(d,s) === present.length) s.done = true;
+    drawCard();
+    toast("찾았어요! ‘" + labelOf(d,k) + "’ 칸을 확인해 보세요.", true);
+  }
+
+  function flash(el){
+    el.classList.remove("nope");
+    void el.offsetWidth;
+    el.classList.add("nope");
+    setTimeout(() => el.classList.remove("nope"), 700);
+  }
+
+  stage.querySelectorAll(".card .blk").forEach(el => {
+    el.onclick = () => {
+      if(el.dataset.k){ discover(el.dataset.k); return; }
+      flash(el);
+      toast("여기는 단서가 아니에요. 출처 정보 칸의 질문을 보고 알맞은 곳을 찾아보세요.");
+    };
+  });
+
+  if(d.type === "video") bindVideo(d, s, discover, flash);
+
+  const reveal = document.getElementById("reveal");
+  if(reveal) reveal.onclick = () => { s.done = true; s.open = true; drawCard(); };
+
+  stage.querySelectorAll(".picks button").forEach(b => {
+    b.onclick = () => { s[b.dataset.g] = b.dataset.v; drawCard(); drawTrack(); };
+  });
+
+  const why = document.getElementById("why");
+  why.oninput = () => { s.reason = why.value; };
+
+  document.getElementById("prev").onclick = () => { at--; render(); };
+  document.getElementById("next").onclick = () => { at++; render(); };
+}
+
+function bindVideo(d, s, discover, flash){
+  const vid = document.getElementById("vid");
+  const segBtns = [...document.querySelectorAll("#segs .seg")];
+  const claim = document.getElementById("claim");
+  let until = null; // 구간 재생이 끝나는 시각
+
+  // 다시 그려도 보던 위치를 이어서 보여 줌
+  vid.addEventListener("loadedmetadata", () => { if(s.vt) vid.currentTime = s.vt; }, { once:true });
+
+  function refreshSegs(){
+    segBtns.forEach((b,i) => { b.className = segClass(d,s,i) + (b.classList.contains("nope") ? " nope" : ""); });
+    claim.disabled = s.sel === null;
+    claim.textContent = claimText(d,s);
+  }
+
+  segBtns.forEach((b,i) => {
+    b.onclick = () => {
+      s.sel = i;
+      until = d.segs[i].to;
+      vid.currentTime = d.segs[i].from;
+      vid.play().catch(() => {});
+      refreshSegs();
+    };
+  });
+
+  vid.addEventListener("timeupdate", () => {
+    s.vt = vid.currentTime;
+    if(until !== null){
+      if(vid.currentTime >= until){ vid.pause(); until = null; }
+      return;
+    }
+    if(!vid.paused){
+      const i = d.segs.findIndex(g => vid.currentTime >= g.from && vid.currentTime < g.to);
+      if(i !== -1 && i !== s.sel){ s.sel = i; refreshSegs(); }
+    }
+  });
+  // 학생이 재생 막대를 직접 옮기면 구간 재생을 멈춤
+  vid.addEventListener("seeking", () => {
+    if(until === null) return;
+    const g = d.segs[s.sel];
+    if(vid.currentTime < g.from - 0.3 || vid.currentTime > g.to) until = null;
+  });
+
+  claim.onclick = () => {
+    const g = d.segs[s.sel];
+    if(g.k){ vid.pause(); s.vt = vid.currentTime; discover(g.k); return; }
+    flash(segBtns[s.sel]);
+    toast("이 구간에는 단서가 없어요. 다른 구간을 들어 보세요.");
+  };
+
+  const more = document.getElementById("more");
+  more.onclick = () => { s.open = !s.open; vid.pause(); s.vt = vid.currentTime; drawCard(); };
+}
+
+function drawSummary(){
+  const rows = DATA.map((d,i) => {
+    const s = state[i];
+    return '<div class="row">' +
+      '<h3>' + d.tag + ". " + d.headline + '</h3>' +
+      '<span class="verdict' + (s.verdict ? "" : " none") + '">' + (s.verdict || "판단하지 않음") + '</span>' +
+      '<p class="reason' + (s.reason.trim() ? "" : " empty") + '">' +
+        (s.reason.trim() ? esc(s.reason) : "까닭을 쓰지 않았습니다.") + '</p>' +
+      '<span class="flag">찾은 단서 ' + foundCount(d,s) + ' / ' + presentKeys(d).length + '</span>' +
+    '</div>';
+  }).join("");
+
+  stage.innerHTML =
+    '<section class="summary">' +
+      '<h2>우리 모둠의 판단</h2>' +
+      '<p class="lead">이 화면을 보며 다른 모둠과 비교해 봅시다.</p>' +
+      rows +
+      '<div class="closing">' +
+        '<strong>생각해 봅시다</strong>' +
+        '네 자료 가운데 판단이 가장 어려웠던 것은 무엇인가요? 자료를 믿을 수 있는지 판단할 때 무엇을 살펴보면 좋을까요?' +
+      '</div>' +
+      '<div class="nav"><button type="button" id="back">자료 다시 보기</button></div>' +
+    '</section>';
+
+  document.getElementById("back").onclick = () => { at = 0; render(); };
+}
+
+function render(){
+  drawTrack();
+  if(at === DATA.length) drawSummary(); else drawCard();
+  window.scrollTo(0,0);
+}
+render();
+</script>
+</body>
+</html>
