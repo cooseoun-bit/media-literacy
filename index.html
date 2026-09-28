@@ -152,6 +152,10 @@
     border-radius:8px;font:inherit;font-size:16px;cursor:pointer;color:var(--ink);
   }
   .picks button[aria-pressed="true"]{border-color:var(--tab);background:var(--tab);color:#fff;font-weight:700;}
+  .picks.nope button{border-color:#c98282;background:#f6e1e1;}
+  textarea.nope{border-color:#c98282;background:#fdf1f1;}
+  .need{font-size:14px;font-weight:700;color:var(--mark-deep);background:#fdf6dc;border-radius:6px;padding:7px 12px;margin:10px 0 0;}
+  .need.ok{color:var(--ink-soft);background:#eef2f7;font-weight:400;}
   label{display:block;font-size:15px;font-weight:700;margin-bottom:7px;}
   .hint{font-weight:400;color:var(--ink-soft);font-size:14px;}
   textarea{
@@ -483,6 +487,10 @@ function drawCard(){
       '<div class="picks">' + pickGroup("verdict", ["믿을 수 있다","의심스럽다"], s.verdict) + '</div>' +
       '<label for="why">그렇게 생각한 까닭 <span class="hint">자료의 어느 부분을 보고 그렇게 생각했는지 쓰세요.</span></label>' +
       '<textarea id="why" placeholder="예: 누가 썼는지 나와 있지 않고, 사진 출처도 없어서">' + esc(s.reason) + '</textarea>' +
+      '<p class="need' + (s.verdict && s.reason.trim() ? " ok" : "") + '" id="need">' +
+        (s.verdict && s.reason.trim()
+          ? "다 했어요. 다음으로 갈 수 있어요."
+          : "판단을 고르고 까닭을 써야 다음으로 갈 수 있어요.") + '</p>' +
       '<div class="nav">' +
         '<button type="button" id="prev"' + (at===0?" disabled":"") + '>이전</button>' +
         '<button type="button" class="primary" id="next">' + (at===DATA.length-1 ? "정리하기" : "다음 자료") + '</button>' +
@@ -524,10 +532,35 @@ function drawCard(){
   });
 
   const why = document.getElementById("why");
-  why.oninput = () => { s.reason = why.value; };
+  const need = document.getElementById("need");
+  why.oninput = () => { s.reason = why.value; refreshNeed(); };
+
+  // 판단과 까닭을 모두 채워야 다음으로 갈 수 있음
+  function refreshNeed(){
+    const ready = s.verdict && s.reason.trim();
+    need.classList.toggle("ok", !!ready);
+    need.textContent = ready ? "다 했어요. 다음으로 갈 수 있어요." : "판단을 고르고 까닭을 써야 다음으로 갈 수 있어요.";
+  }
 
   document.getElementById("prev").onclick = () => { at--; render(); };
-  document.getElementById("next").onclick = () => { at++; render(); };
+  document.getElementById("next").onclick = () => {
+    if(!s.verdict){
+      const picks = stage.querySelector(".judge .picks");
+      flash(picks);
+      picks.scrollIntoView({ block:"center" });
+      toast("먼저 ‘믿을 수 있다’ 또는 ‘의심스럽다’를 골라 주세요.");
+      return;
+    }
+    if(!s.reason.trim()){
+      flash(why);
+      why.scrollIntoView({ block:"center" });
+      why.focus();
+      toast("그렇게 생각한 까닭을 써 주세요.");
+      return;
+    }
+    at++;
+    render();
+  };
 }
 
 function bindVideo(d, s, discover, flash){
