@@ -43,6 +43,7 @@
   .track button[aria-current="true"]{background:var(--tab);border-color:var(--tab);color:#fff;font-weight:700;}
   .track .dot{width:7px;height:7px;border-radius:50%;background:var(--mark);display:none;}
   .track button.done .dot{display:block;}
+  .track button.locked{opacity:.45;cursor:default;}
 
   /* 자료 카드 */
   .card{
@@ -137,11 +138,6 @@
   .source .blank{display:inline-block;min-width:44px;border-bottom:1.5px dashed #d8c47f;color:#c7b26a;font-weight:400;text-align:center;}
   .source .absent{color:var(--ink-soft);font-weight:400;}
   .source .note{font-size:12px;font-weight:700;color:var(--mark-deep);background:#fbefc6;border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap;}
-  .reveal{
-    width:100%;border:1.5px dashed var(--mark-deep);background:#fdf6dc;color:var(--mark-deep);
-    border-radius:8px;padding:11px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;
-  }
-  .reveal:hover{background:#fbefc6;}
 
   /* 판단 */
   .judge{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:22px 26px;}
@@ -162,7 +158,7 @@
     width:100%;min-height:110px;padding:12px 14px;border:1.5px solid var(--line);
     border-radius:8px;font:inherit;font-size:16px;line-height:1.6;resize:vertical;background:#fcfdff;
   }
-  textarea:focus,.picks button:focus-visible,.reveal:focus-visible,.track button:focus-visible,.nav button:focus-visible,
+  textarea:focus,.picks button:focus-visible,.track button:focus-visible,.nav button:focus-visible,
   .seg:focus-visible,.claim:focus-visible,.more:focus-visible{
     outline:3px solid var(--focus);outline-offset:2px;
   }
@@ -308,23 +304,33 @@ let at = 0;
 const track = document.getElementById("track");
 const stage = document.getElementById("stage");
 
+// 판단과 까닭을 모두 쓴 자료만 '마친' 자료로 봅니다.
+function complete(i){ const s = state[i]; return !!(s.verdict && s.reason.trim()); }
+
+// 앞의 자료를 모두 마쳐야 그 뒤로 갈 수 있습니다.
+function canGo(i){
+  for(let j = 0; j < i; j++) if(!complete(j)) return false;
+  return true;
+}
+
 function drawTrack(){
   track.innerHTML = "";
-  DATA.forEach((d,i) => {
+  const tabs = DATA.map((d,i) => [i, d.tag]).concat([[DATA.length, "정리"]]);
+  tabs.forEach(([i,text]) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.innerHTML = d.tag + '<span class="dot"></span>';
+    b.innerHTML = text + '<span class="dot"></span>';
     if(i === at) b.setAttribute("aria-current","true");
-    if(state[i].verdict) b.classList.add("done");
-    b.onclick = () => { at = i; render(); };
+    if(i < DATA.length && complete(i)) b.classList.add("done");
+    if(canGo(i)){
+      b.onclick = () => { at = i; render(); };
+    } else {
+      b.classList.add("locked");
+      b.setAttribute("aria-disabled","true");
+      b.onclick = () => toast("앞의 자료부터 판단과 까닭을 채워 주세요.");
+    }
     track.appendChild(b);
   });
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = "정리";
-  if(at === DATA.length) b.setAttribute("aria-current","true");
-  b.onclick = () => { at = DATA.length; render(); };
-  track.appendChild(b);
 }
 
 function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -451,6 +457,7 @@ function drawCard(){
 
   let hint;
   if(!s.done) hint = d.type === "video"
+
     ? "화면의 블록과 영상 구간에서 단서를 찾아보세요. 영상은 구간을 눌러 들어 본 뒤, 단서가 있으면 ‘구간에 단서가 있어요’를 누르세요."
     : "글과 사진 설명의 블록에서 단서를 찾아 눌러 보세요. 자료에 나와 있지 않은 정보도 있어요.";
   else if(found === present.length) hint = "자료에 있는 단서를 모두 찾았어요.";
@@ -480,7 +487,6 @@ function drawCard(){
       '<div class="source-head"><h3>출처 정보</h3><span class="count">찾은 단서 ' + found + ' / ' + present.length + '</span></div>' +
       '<p class="source-hint">' + hint + '</p>' +
       '<dl>' + slots + '</dl>' +
-      (s.done ? '' : '<button class="reveal" type="button" id="reveal">더 못 찾겠어요 · 확인하기</button>') +
     '</section>' +
     '<section class="judge">' +
       '<h2>이 자료를 믿을 수 있을까요?</h2>' +
@@ -524,9 +530,6 @@ function drawCard(){
 
   if(d.type === "video") bindVideo(d, s, discover, flash);
 
-  const reveal = document.getElementById("reveal");
-  if(reveal) reveal.onclick = () => { s.done = true; s.open = true; drawCard(); };
-
   stage.querySelectorAll(".picks button").forEach(b => {
     b.onclick = () => { s[b.dataset.g] = b.dataset.v; drawCard(); drawTrack(); };
   });
@@ -540,6 +543,7 @@ function drawCard(){
     const ready = s.verdict && s.reason.trim();
     need.classList.toggle("ok", !!ready);
     need.textContent = ready ? "다 했어요. 다음으로 갈 수 있어요." : "판단을 고르고 까닭을 써야 다음으로 갈 수 있어요.";
+    drawTrack(); // 자료를 마치면 다음 탭이 열림
   }
 
   document.getElementById("prev").onclick = () => { at--; render(); };
