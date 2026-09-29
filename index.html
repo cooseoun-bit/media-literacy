@@ -154,6 +154,11 @@
   .need.ok{color:var(--ink-soft);background:#eef2f7;font-weight:400;}
   label{display:block;font-size:15px;font-weight:700;margin-bottom:7px;}
   .hint{font-weight:400;color:var(--ink-soft);font-size:14px;}
+  .frame{
+    margin:0 0 8px;padding:8px 12px;background:#f1f5fa;border-left:4px solid var(--tab);
+    border-radius:0 6px 6px 0;font-size:15px;color:var(--ink);
+  }
+  .frame b{font-weight:700;}
   textarea{
     width:100%;min-height:110px;padding:12px 14px;border:1.5px solid var(--line);
     border-radius:8px;font:inherit;font-size:16px;line-height:1.6;resize:vertical;background:#fcfdff;
@@ -491,8 +496,9 @@ function drawCard(){
     '<section class="judge">' +
       '<h2>이 자료를 믿을 수 있을까요?</h2>' +
       '<div class="picks">' + pickGroup("verdict", ["믿을 수 있다","의심스럽다"], s.verdict) + '</div>' +
-      '<label for="why">그렇게 생각한 까닭 <span class="hint">자료의 어느 부분을 보고 그렇게 생각했는지 쓰세요.</span></label>' +
-      '<textarea id="why" placeholder="예: 누가 썼는지 나와 있지 않고, 사진 출처도 없어서">' + esc(s.reason) + '</textarea>' +
+      '<label for="why">그렇게 생각한 까닭 <span class="hint">자료의 어느 부분을 보고 그렇게 생각했는지, 한 가지만 쓰세요.</span></label>' +
+      '<p class="frame">(　　)에 (　　)가 <b>나와 있어서 · 나와 있지 않아서</b>, (　　)라고 생각한다.</p>' +
+      '<textarea id="why" placeholder="예: 기사 맨 위에 기자 이름과 날짜가 나와 있어서, 믿을 수 있다고 생각한다.">' + esc(s.reason) + '</textarea>' +
       '<p class="need' + (s.verdict && s.reason.trim() ? " ok" : "") + '" id="need">' +
         (s.verdict && s.reason.trim()
           ? "다 했어요. 다음으로 갈 수 있어요."
